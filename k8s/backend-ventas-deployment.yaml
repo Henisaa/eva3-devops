@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tienda-backend-ventas
+  namespace: tienda
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tienda-backend-ventas
+  template:
+    metadata:
+      labels:
+        app: tienda-backend-ventas
+    spec:
+      containers:
+        - name: backend-ventas
+          image: {{ECR_URL}}/tienda-backend-ventas:eks-v1
+          ports:
+            - containerPort: 8080
+          env:
+            # DB_ENDPOINT = nombre del Service de MySQL (DNS interno EKS)
+            - name: DB_ENDPOINT
+              value: "tienda-db"
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              value: "tienda_semestral"
+            - name: DB_USERNAME
+              value: "root"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+
+          # requests/limits: el HPA necesita requests para calcular % de CPU.
+          # Spring Boot consume más memoria que Node, por eso límites mayores.
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"
+
+          # Probes TCP: el proyecto no incluye spring-boot-actuator, por lo que
+          # se valida disponibilidad por socket en el puerto 8080.
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 18   # hasta ~3 min para arrancar la JVM
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15

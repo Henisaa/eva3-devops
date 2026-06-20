@@ -1,0 +1,70 @@
+name: CI/CD Frontend -> EKS (build, push ECR, deploy)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "frontend/**"
+      - "app/frontend/default.conf"
+      - "k8s/frontend-*.yaml"
+      - ".github/workflows/ci-cd-frontend.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  CLUSTER_NAME: devopseks
+  NAMESPACE: tienda
+  ECR_REPOSITORY: tienda-frontend
+  DEPLOYMENT: tienda-frontend
+  CONTAINER: frontend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      # Credenciales temporales de AWS Academy (incluyen session token).
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login en Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Aplicar config NGINX adaptada a EKS
+        run: cp ./app/frontend/default.conf ./frontend/default.conf
+
+      - name: Build y push de la imagen (tag = commit SHA + latest)
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --build-arg VITE_API_VENTAS_URL="" \
+            --build-arg VITE_API_DESPACHOS_URL="" \
+            -t "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$REGISTRY/$ECR_REPOSITORY:latest" ./frontend
+          docker push "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+
+      - name: Configurar kubeconfig contra EKS
+        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+
+      - name: Deploy en EKS (rolling update)
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          kubectl set image deployment/$DEPLOYMENT \
+            $CONTAINER=$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -n $NAMESPACE
+          kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=300s
+
+      - name: Evidencia del despliegue
+        run: kubectl get pods -n $NAMESPACE -o wide

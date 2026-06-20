@@ -1,0 +1,19 @@
+# Ignora archivos de configuración locales
+.env
+*.iml
+.idea/
+*.log
+
+# Ignora artefactos de compilación local (NO .mvn, es necesario para el build Docker)
+target/
+.settings/
+
+# Ignora control de versiones
+.git/
+.gitignore
+docker-compose.override.yml
+Dockerfile*
+
+# Ignora archivos temporales
+*.swp
+*~

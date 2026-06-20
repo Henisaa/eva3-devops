@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tienda-backend-ventas
+  namespace: tienda
+spec:
+  selector:
+    app: tienda-backend-ventas
+  ports:
+    - port: 8080
+      targetPort: 8080
+  # ClusterIP: no expuesto a Internet. Lo consume el frontend (proxy NGINX).
+  type: ClusterIP

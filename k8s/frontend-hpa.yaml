@@ -1,0 +1,21 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tienda-frontend-hpa
+  namespace: tienda
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tienda-frontend
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # NGINX estático consume poca CPU: umbral más bajo (60%) reacciona
+          # antes ante ráfagas de tráfico HTTP.
+          averageUtilization: 60

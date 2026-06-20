@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tienda-backend-despachos
+  namespace: tienda
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tienda-backend-despachos
+  template:
+    metadata:
+      labels:
+        app: tienda-backend-despachos
+    spec:
+      containers:
+        - name: backend-despachos
+          image: {{ECR_URL}}/tienda-backend-despachos:eks-v1
+          ports:
+            - containerPort: 8081
+          env:
+            - name: DB_ENDPOINT
+              value: "tienda-db"
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              value: "tienda_semestral"
+            - name: DB_USERNAME
+              value: "root"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"
+
+          startupProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 18
+          readinessProbe:
+            tcpSocket:
+              port: 8081
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 15

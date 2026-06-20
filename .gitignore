@@ -1,0 +1,16 @@
+# Dependencias / build
+node_modules/
+dist/
+target/
+*.class
+
+# Secretos / credenciales — NUNCA versionar
+*.env
+.env
+k8s/mysql-secret.yaml
+*.pem
+kubeconfig
+
+# Sistema
+.DS_Store
+Thumbs.db
