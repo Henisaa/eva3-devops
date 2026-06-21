@@ -123,6 +123,16 @@ Configura `kubectl`, instala Metrics Server, aplica el nginx adaptado, construye
 sube las **4 imágenes**, crea el **Secret** de MySQL, despliega todo en orden
 (DB → backends → frontend) y entrega la **URL pública** al final.
 
+> ⚠️ **`no space left on device` al construir las imágenes.** CloudShell tiene poco
+> disco. El script borra cada imagen local y la cache de build justo después de
+> subirla a ECR (función `build_push`), así no se llena. Si aun así falla, libera
+> espacio y vuelve a ejecutar `./scripts/deploy.sh` (las imágenes ya subidas no se
+> reconstruyen en ECR):
+> ```bash
+> docker system prune -af && docker builder prune -af
+> df -h /
+> ```
+
 ### Paso 3 — Activar CI/CD (GitHub Actions)
 
 GitHub → **Settings → Secrets and variables → Actions** (valores de *AWS Details → AWS CLI*):

@@ -25,6 +25,22 @@ DB_PASSWORD="${DB_PASSWORD:-admin123}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_URL="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
+# build_push <nombre-repo> <ruta-contexto> [args extra de docker build]
+# Construye, etiqueta y sube la imagen a ECR; luego BORRA la imagen local y la
+# cache de build. CloudShell tiene poco disco: sin esta limpieza, al construir
+# la 3a/4a imagen falla con "no space left on device".
+build_push() {
+  local name="$1"; local ctx="$2"; shift 2
+  echo ""
+  echo ">> Build & push ${name}..."
+  docker build "$@" -t "${name}" "${ctx}"
+  docker tag  "${name}:latest" "${ECR_URL}/${name}:${IMAGE_TAG}"
+  docker push "${ECR_URL}/${name}:${IMAGE_TAG}"
+  # Liberar disco antes de la siguiente imagen
+  docker rmi "${ECR_URL}/${name}:${IMAGE_TAG}" "${name}:latest" >/dev/null 2>&1 || true
+  docker builder prune -af >/dev/null 2>&1 || true
+}
+
 echo "===================================="
 echo "Account ID : ${ACCOUNT_ID}"
 echo "Cluster    : ${CLUSTER_NAME}"
@@ -58,32 +74,15 @@ aws ecr get-login-password --region "${REGION}" | \
 ####################################################
 # BUILD + PUSH de las 4 imágenes
 ####################################################
-echo ""
-echo ">> Build & push tienda-frontend..."
-docker build \
+build_push tienda-frontend         ./frontend \
   --build-arg VITE_API_VENTAS_URL="" \
-  --build-arg VITE_API_DESPACHOS_URL="" \
-  -t tienda-frontend ./frontend
-docker tag  tienda-frontend:latest "${ECR_URL}/tienda-frontend:${IMAGE_TAG}"
-docker push "${ECR_URL}/tienda-frontend:${IMAGE_TAG}"
+  --build-arg VITE_API_DESPACHOS_URL=""
 
-echo ""
-echo ">> Build & push tienda-backend-ventas..."
-docker build -t tienda-backend-ventas ./backend-ventas
-docker tag  tienda-backend-ventas:latest "${ECR_URL}/tienda-backend-ventas:${IMAGE_TAG}"
-docker push "${ECR_URL}/tienda-backend-ventas:${IMAGE_TAG}"
+build_push tienda-backend-ventas    ./backend-ventas
 
-echo ""
-echo ">> Build & push tienda-backend-despachos..."
-docker build -t tienda-backend-despachos ./backend-despachos
-docker tag  tienda-backend-despachos:latest "${ECR_URL}/tienda-backend-despachos:${IMAGE_TAG}"
-docker push "${ECR_URL}/tienda-backend-despachos:${IMAGE_TAG}"
+build_push tienda-backend-despachos ./backend-despachos
 
-echo ""
-echo ">> Build & push tienda-db..."
-docker build -t tienda-db ./db
-docker tag  tienda-db:latest "${ECR_URL}/tienda-db:${IMAGE_TAG}"
-docker push "${ECR_URL}/tienda-db:${IMAGE_TAG}"
+build_push tienda-db                ./db
 
 ####################################################
 # KUBERNETES
