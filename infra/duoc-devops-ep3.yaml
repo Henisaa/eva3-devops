@@ -15,6 +15,15 @@ Parameters:
     Description: Nombre del rol IAM para el node group de EKS (sin el prefijo ARN). En AWS Academy suele ser LabRole.
     MinLength: 1
 
+  PipelineRoleName:
+    Type: String
+    Default: voclabs
+    Description: >
+      Nombre del rol IAM con el que corren las pipelines de GitHub Actions y la consola/CloudShell
+      de AWS Academy. En Academy es 'voclabs'. Se le concede admin del clúster vía Access Entry
+      para que 'kubectl' (set image / rollout) funcione desde CI/CD.
+    MinLength: 1
+
 Resources:
 
   #################################
@@ -287,6 +296,13 @@ Resources:
       Name: devopseks
       Version: "1.31"
       RoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EksClusterRoleName}'
+      # Access Entries (modo API) en lugar del aws-auth legacy.
+      # BootstrapClusterCreatorAdminPermissions=false evita que EKS cree una entry
+      # automática para el rol creador (LabRole, que tambien es rol de nodos) -> sin conflicto.
+      # El admin se concede explicitamente al rol del pipeline (voclabs) mas abajo.
+      AccessConfig:
+        AuthenticationMode: API_AND_CONFIG_MAP
+        BootstrapClusterCreatorAdminPermissions: false
       ResourcesVpcConfig:
         EndpointPrivateAccess: true
         EndpointPublicAccess: true
@@ -340,6 +356,26 @@ Resources:
         - !Ref PrivateSubnetA2
         - !Ref PrivateSubnetB1
         - !Ref PrivateSubnetB2
+
+  #####################################################
+  # ACCESS ENTRY: admin del clúster para el rol del pipeline
+  #####################################################
+  # Autoriza a 'voclabs' (GitHub Actions / CloudShell de Academy) dentro del RBAC
+  # de Kubernetes. Sin esto, 'kubectl' falla con "the server has asked for the
+  # client to provide credentials" aunque las credenciales IAM/ECR sean válidas.
+
+  PipelineAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    DependsOn:
+      - EKSCluster
+    Properties:
+      ClusterName: !Ref EKSCluster
+      PrincipalArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${PipelineRoleName}'
+      Type: STANDARD
+      AccessPolicies:
+        - PolicyArn: arn:aws:iam::aws:policy/AmazonEKSClusterAdminPolicy
+          AccessScope:
+            Type: cluster
 
   #####################################################
   # ADDONS
