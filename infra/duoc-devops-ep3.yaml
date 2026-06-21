@@ -373,7 +373,9 @@ Resources:
       PrincipalArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${PipelineRoleName}'
       Type: STANDARD
       AccessPolicies:
-        - PolicyArn: arn:aws:iam::aws:policy/AmazonEKSClusterAdminPolicy
+        # OJO: las access policies de EKS NO son políticas IAM; usan este ARN especial
+        # (arn:aws:eks::aws:cluster-access-policy/...), no arn:aws:iam::aws:policy/...
+        - PolicyArn: arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
           AccessScope:
             Type: cluster
 
