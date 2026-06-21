@@ -36,8 +36,7 @@ EP3-tienda-semestral/
 > no a la IP de EC2 de EVA2). Los 4 workflows de `.github/workflows/` despliegan en EKS y
 > sustituyen el esquema EC2/SSM de EVA2.
 
-> 📘 **¿Quieres entender TODO el proyecto de 0 a experto** (qué hace cada línea de Docker,
-> cada comando, cada manifest)? Lee **[`docs/GUIA_COMPLETA.md`](docs/GUIA_COMPLETA.md)**.
+> 📘 **¿Quieres entender TODO el proyecto? Lee **[`docs/GUIA_COMPLETA.md`](docs/GUIA_COMPLETA.md)**.
 
 ---
 
