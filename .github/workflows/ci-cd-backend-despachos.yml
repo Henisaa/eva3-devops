@@ -32,6 +32,11 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # Debug: imprime el ARN/rol con el que corre el pipeline.
+      # El rol base de este ARN es el que hay que autorizar en EKS (access entry).
+      - name: Identidad IAM efectiva
+        run: aws sts get-caller-identity
+
       - name: Login en Amazon ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
