@@ -39,6 +39,20 @@ jobs:
       - name: Identidad IAM efectiva
         run: aws sts get-caller-identity
 
+      - name: Test (construir imagen, levantarla y validar la semilla de datos)
+        run: |
+          docker build -t tienda-db:test ./db
+          docker run -d --name tienda-db-test -p 3306:3306 tienda-db:test
+          for i in $(seq 1 30); do
+            if docker exec tienda-db-test mysqladmin ping -h localhost -uroot -padmin123 --silent; then
+              echo "MySQL listo"; break
+            fi
+            sleep 3
+          done
+          docker exec tienda-db-test mysql -uroot -padmin123 -e \
+            "SELECT COUNT(*) AS ventas_semilla FROM tienda_semestral.venta;"
+          docker stop tienda-db-test && docker rm tienda-db-test
+
       - name: Login en Amazon ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2

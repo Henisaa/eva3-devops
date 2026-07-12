@@ -1,0 +1,77 @@
+services:
+  tienda-db:
+    build: ./db
+    container_name: tienda-db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+      MYSQL_DATABASE: tienda_semestral
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-padmin123"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - tienda-net
+
+  tienda-backend-ventas:
+    build: ./backend-ventas
+    container_name: tienda-backend-ventas
+    environment:
+      DB_ENDPOINT: tienda-db
+      DB_PORT: "3306"
+      DB_NAME: tienda_semestral
+      DB_USERNAME: root
+      DB_PASSWORD: admin123
+    ports:
+      - "8080:8080"
+    depends_on:
+      tienda-db:
+        condition: service_healthy
+    networks:
+      - tienda-net
+
+  tienda-backend-despachos:
+    build: ./backend-despachos
+    container_name: tienda-backend-despachos
+    environment:
+      DB_ENDPOINT: tienda-db
+      DB_PORT: "3306"
+      DB_NAME: tienda_semestral
+      DB_USERNAME: root
+      DB_PASSWORD: admin123
+    ports:
+      - "8081:8081"
+    depends_on:
+      tienda-db:
+        condition: service_healthy
+    networks:
+      - tienda-net
+
+  # Nombrado igual al Service de Kubernetes (tienda-backend-ventas / -despachos):
+  # así frontend/default.conf (el mismo que se usa en EKS) resuelve los backends
+  # también en local, sin tener que mantener una config de nginx distinta.
+  tienda-frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_VENTAS_URL: ""
+        VITE_API_DESPACHOS_URL: ""
+    container_name: tienda-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - tienda-backend-ventas
+      - tienda-backend-despachos
+    networks:
+      - tienda-net
+
+networks:
+  tienda-net:
+    driver: bridge
+
+volumes:
+  db-data:

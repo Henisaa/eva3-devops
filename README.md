@@ -24,6 +24,7 @@ EP3-tienda-semestral/
 ├── backend-ventas/           # Microservicio Spring Boot :8080
 ├── backend-despachos/        # Microservicio Spring Boot :8081
 ├── db/                       # MySQL 8 + init.sql (semilla)
+├── docker-compose.yml        # Orquestación local (frontend + 2 backends + MySQL)
 ├── k8s/                      # Manifests Kubernetes (4 servicios + mysql + HPA)
 ├── infra/                    # CloudFormation: VPC + ECR + EKS
 ├── scripts/deploy.sh         # Bootstrap (despliegue inicial completo)
@@ -146,6 +147,36 @@ Cada push a `main` que toque `frontend/**`, `backend-ventas/**`, `backend-despac
 o `db/**` dispara el pipeline correspondiente: *build → push ECR → deploy EKS*.
 
 Detalle: [`docs/PIPELINE_CICD.md`](docs/PIPELINE_CICD.md).
+
+---
+
+## 4bis. Desarrollo local (Docker Compose)
+
+Para levantar los 4 componentes en tu máquina, sin AWS, con un solo comando:
+
+```bash
+docker compose up -d --build
+```
+
+Esto construye las 4 imágenes (frontend, backend-ventas, backend-despachos, db), crea una
+red interna (`tienda-net`) y un volumen para los datos de MySQL (`db-data`), y expone:
+
+| Servicio | URL local |
+|----------|-----------|
+| Frontend (SPA) | http://localhost |
+| Backend Ventas | http://localhost:8080/api/v1/ventas |
+| Backend Despachos | http://localhost:8081/api/v1/despachos |
+| MySQL | localhost:3306 |
+
+Los servicios se llaman igual que los `Service` de Kubernetes (`tienda-backend-ventas`,
+`tienda-backend-despachos`, `tienda-db`), así que `frontend/default.conf` (el mismo NGINX
+que corre en EKS) resuelve los backends también en local, sin mantener una config aparte.
+
+Apagar y limpiar (borra también los datos de MySQL):
+
+```bash
+docker compose down -v
+```
 
 ---
 

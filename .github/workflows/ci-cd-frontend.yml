@@ -39,6 +39,19 @@ jobs:
       - name: Identidad IAM efectiva
         run: aws sts get-caller-identity
 
+      - name: Configurar Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Test (lint como gate de calidad)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run lint
+
       - name: Login en Amazon ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
